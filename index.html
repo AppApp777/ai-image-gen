@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 绘图</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary:#7c3aed;--primary-hover:#6d28d9;--primary-light:#ede9fe;
+  --bg:#f5f3ff;--surface:#fff;--text:#1f2937;--text-secondary:#6b7280;
+  --border:#e5e7eb;--radius:16px;--shadow:0 4px 24px rgba(124,58,237,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;padding:24px 16px}
+.container{max-width:640px;margin:0 auto}
+
+header{text-align:center;padding:32px 0 24px}
+header h1{font-size:28px;font-weight:700;color:var(--primary)}
+header p{color:var(--text-secondary);margin-top:6px;font-size:15px}
+
+.card{background:var(--surface);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow)}
+
+textarea{width:100%;min-height:120px;border:2px solid var(--border);border-radius:12px;
+  padding:14px 16px;font-size:15px;line-height:1.6;resize:vertical;outline:none;
+  font-family:inherit;transition:border-color .2s}
+textarea:focus{border-color:var(--primary)}
+textarea::placeholder{color:#c4b5fd}
+
+.upload-section{margin-top:16px}
+.upload-label{font-size:14px;color:var(--text-secondary);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.upload-label span.count{color:var(--primary);font-weight:600}
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:16px;
+  text-align:center;cursor:pointer;transition:all .2s;min-height:60px;
+  display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--primary);background:var(--primary-light)}
+.upload-zone .hint{color:var(--text-secondary);font-size:14px;width:100%}
+.upload-zone input{display:none}
+.preview-item{position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;flex-shrink:0}
+.preview-item img{width:100%;height:100%;object-fit:cover}
+.preview-item .remove{position:absolute;top:2px;right:2px;width:20px;height:20px;
+  background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;
+  font-size:14px;line-height:20px;text-align:center;cursor:pointer;padding:0}
+.preview-item .remove:hover{background:rgba(220,38,38,.8)}
+
+.controls{display:flex;gap:12px;margin-top:16px;align-items:center}
+select{flex:0 0 auto;height:44px;padding:0 14px;border:2px solid var(--border);
+  border-radius:10px;font-size:14px;background:var(--surface);outline:none;
+  cursor:pointer;color:var(--text)}
+select:focus{border-color:var(--primary)}
+.btn-generate{flex:1;height:44px;border:none;border-radius:10px;
+  background:var(--primary);color:#fff;font-size:16px;font-weight:600;
+  cursor:pointer;transition:all .2s}
+.btn-generate:hover:not(:disabled){background:var(--primary-hover);transform:translateY(-1px)}
+.btn-generate:disabled{opacity:.55;cursor:not-allowed}
+
+.result{margin-top:20px;display:none}
+.result.visible{display:block}
+
+.progress-section{padding:24px 0;text-align:center}
+.progress-bar-bg{width:100%;height:8px;background:var(--primary-light);border-radius:4px;overflow:hidden;margin:16px 0 12px}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--primary),#a78bfa);border-radius:4px;
+  transition:width .5s ease;width:0%}
+.progress-text{font-size:15px;color:var(--text);font-weight:500}
+.progress-sub{font-size:13px;color:var(--text-secondary);margin-top:6px}
+.progress-tip{font-size:12px;color:#a78bfa;margin-top:12px;
+  background:var(--primary-light);padding:8px 12px;border-radius:8px;display:inline-block}
+
+.image-box{border-radius:12px;overflow:hidden;position:relative}
+.image-box img{width:100%;display:block;border-radius:12px}
+#imgFallback{text-align:center;padding:20px}
+#imgFallback p{color:var(--text-secondary);margin-bottom:8px}
+#imgFallback a{color:var(--primary);word-break:break-all}
+.image-actions{display:flex;gap:10px;margin-top:12px;justify-content:center;flex-wrap:wrap}
+.image-actions button{height:36px;padding:0 20px;border:2px solid var(--primary);
+  border-radius:8px;background:transparent;color:var(--primary);font-size:14px;
+  font-weight:500;cursor:pointer;transition:all .15s}
+.image-actions button:hover{background:var(--primary);color:#fff}
+.error-msg{background:#fef2f2;color:#dc2626;padding:14px 16px;border-radius:10px;
+  font-size:14px;line-height:1.5}
+
+.history{margin-top:32px}
+.history h2{font-size:18px;font-weight:600;margin-bottom:16px;display:flex;
+  align-items:center;justify-content:space-between}
+.history h2 button{font-size:13px;color:var(--text-secondary);background:none;
+  border:none;cursor:pointer;text-decoration:underline}
+.history-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.history-item{background:var(--surface);border-radius:12px;overflow:hidden;
+  box-shadow:0 2px 12px rgba(0,0,0,.05);cursor:pointer;transition:transform .15s}
+.history-item:hover{transform:translateY(-2px)}
+.history-item img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.history-item .meta{padding:8px 10px;font-size:12px;color:var(--text-secondary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.settings-bar{display:flex;justify-content:flex-end;margin-bottom:12px}
+.settings-bar button{font-size:13px;color:var(--text-secondary);background:none;
+  border:1px solid var(--border);border-radius:8px;padding:4px 12px;cursor:pointer}
+.settings-bar button:hover{border-color:var(--primary);color:var(--primary)}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;
+  align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:var(--surface);border-radius:var(--radius);padding:32px;
+  max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal h2{font-size:20px;margin-bottom:8px;text-align:center}
+.modal p{color:var(--text-secondary);font-size:14px;margin-bottom:20px;text-align:center}
+.modal label{display:block;font-size:14px;color:var(--text);margin-bottom:6px;margin-top:14px;font-weight:500}
+.modal input{width:100%;height:44px;border:2px solid var(--border);border-radius:10px;
+  padding:0 14px;font-size:14px;outline:none}
+.modal input:focus{border-color:var(--primary)}
+.modal .hint{font-size:12px;color:var(--text-secondary);margin-top:4px}
+.modal .btn-confirm{width:100%;height:44px;border:none;border-radius:10px;margin-top:20px;
+  background:var(--primary);color:#fff;font-size:16px;font-weight:600;cursor:pointer}
+
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;
+  align-items:center;justify-content:center;z-index:200;cursor:zoom-out;padding:20px}
+.lightbox img{max-width:95%;max-height:95%;border-radius:8px}
+
+@media(max-width:480px){
+  body{padding:12px 10px}
+  header{padding:20px 0 16px}
+  header h1{font-size:24px}
+  .card{padding:16px}
+  textarea{min-height:100px}
+  .controls{flex-direction:column}
+  select,.btn-generate{width:100%}
+  .history-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .preview-item{width:60px;height:60px}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>AI 绘图</h1>
+    <p>输入描述，AI 帮你画</p>
+  </header>
+
+  <div class="settings-bar">
+    <button id="settingsBtn">设置</button>
+  </div>
+
+  <div class="card">
+    <textarea id="prompt" placeholder="描述你想要的图片，比如：一只橘猫趴在窗台上晒太阳，水彩风格"></textarea>
+
+    <div class="upload-section">
+      <div class="upload-label">风格参考图（可选，最多 9 张）<span class="count" id="imgCount"></span></div>
+      <div class="upload-zone" id="uploadZone">
+        <span class="hint" id="uploadHint">点击或拖拽图片到这里</span>
+        <input type="file" id="fileInput" accept="image/*" multiple>
+      </div>
+    </div>
+
+    <div class="controls">
+      <select id="model">
+        <option value="gpt-5-5">GPT-5.5 (推荐)</option>
+        <option value="gpt-5-5-thinking">GPT-5.5 Thinking (慢但质量高)</option>
+      </select>
+      <button class="btn-generate" id="generateBtn">生成</button>
+    </div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="card">
+      <div class="progress-section" id="progressSection" style="display:none">
+        <div class="progress-text" id="progressText">正在生成中...</div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+        <div class="progress-sub" id="progressSub">已等待 0 秒</div>
+        <div class="progress-tip">通常需要 30~90 秒，请保持页面打开</div>
+      </div>
+      <div class="image-box" id="imageBox" style="display:none">
+        <img id="resultImg" alt="生成的图片" referrerpolicy="no-referrer" crossorigin="anonymous">
+        <div id="imgFallback" style="display:none">
+          <p>图片加载失败，点击下方链接查看：</p>
+          <a id="imgLink" href="" target="_blank"></a>
+        </div>
+        <div class="image-actions">
+          <button id="downloadBtn">保存图片</button>
+          <button id="openBtn">查看原图</button>
+          <button id="reuseBtn">再来一张</button>
+        </div>
+      </div>
+      <div class="error-msg" id="errorMsg" style="display:none"></div>
+    </div>
+  </div>
+
+  <section class="history" id="historySection" style="display:none">
+    <h2>历史记录 <button id="clearHistory">清空</button></h2>
+    <div class="history-grid" id="historyGrid"></div>
+  </section>
+</div>
+
+<div class="modal-overlay" id="settingsModal" style="display:none">
+  <div class="modal">
+    <h2>设置</h2>
+    <p>首次使用需要填写，之后会自动记住</p>
+    <label>API Key</label>
+    <input type="password" id="inputApiKey" placeholder="sk-..." autocomplete="off">
+    <div class="hint">chat01.ai 的 API Key</div>
+    <label>API 地址</label>
+    <input type="text" id="inputBaseUrl" placeholder="https://chat01.ai/v1/chat/completions">
+    <div class="hint">一般不用改</div>
+    <button class="btn-confirm" id="settingsSave">保存</button>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" style="display:none">
+  <img id="lightboxImg">
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const LS = key => "ai_img_" + key;
+const MAX_IMAGES = 9;
+const MAX_PX = 1024;
+const IMG_URL_RE = /!\[[^\]]*\]\((https:\/\/files\.chat01\.ai\/[^)]+)\)/;
+const PUSHPLUS_TOKEN = "af88cf9421834038b68447a2cf20118d";
+const DEFAULT_BASE_URL = "https://chat01.ai/v1/chat/completions";
+
+let generating = false;
+let timerInterval = null;
+let lastImageUrl = "";
+let refImages = [];
+
+function getSetting(key, fallback) { return localStorage.getItem(LS(key)) || fallback; }
+function setSetting(key, val) { localStorage.setItem(LS(key), val); }
+
+// ==================== settings ====================
+function showSettings() {
+  $("inputApiKey").value = getSetting("apiKey", "");
+  $("inputBaseUrl").value = getSetting("baseUrl", DEFAULT_BASE_URL);
+  $("settingsModal").style.display = "flex";
+  $("inputApiKey").focus();
+}
+function saveSettings() {
+  const key = $("inputApiKey").value.trim();
+  if (!key) { $("inputApiKey").focus(); return; }
+  setSetting("apiKey", key);
+  setSetting("baseUrl", $("inputBaseUrl").value.trim() || DEFAULT_BASE_URL);
+  $("settingsModal").style.display = "none";
+}
+function ensureSettings() {
+  if (!getSetting("apiKey", "")) { showSettings(); return false; }
+  return true;
+}
+
+// ==================== image upload ====================
+function resizeImage(file) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let {width, height} = img;
+      if (width > MAX_PX || height > MAX_PX) {
+        const scale = MAX_PX / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+async function addFiles(files) {
+  const remaining = MAX_IMAGES - refImages.length;
+  const toAdd = Array.from(files).slice(0, remaining);
+  for (const file of toAdd) {
+    if (!file.type.startsWith("image/")) continue;
+    const dataUrl = await resizeImage(file);
+    const previewUrl = URL.createObjectURL(file);
+    refImages.push({dataUrl, previewUrl});
+  }
+  renderPreviews();
+}
+function removeImage(idx) {
+  URL.revokeObjectURL(refImages[idx].previewUrl);
+  refImages.splice(idx, 1);
+  renderPreviews();
+}
+function renderPreviews() {
+  const zone = $("uploadZone");
+  const hint = $("uploadHint");
+  const count = $("imgCount");
+  zone.querySelectorAll(".preview-item").forEach(el => el.remove());
+  if (refImages.length === 0) {
+    hint.style.display = "block";
+    hint.textContent = "点击或拖拽图片到这里";
+    count.textContent = "";
+  } else {
+    hint.style.display = refImages.length >= MAX_IMAGES ? "none" : "block";
+    if (refImages.length < MAX_IMAGES) hint.textContent = "继续添加...";
+    count.textContent = refImages.length + "/" + MAX_IMAGES;
+    refImages.forEach((item, i) => {
+      const div = document.createElement("div");
+      div.className = "preview-item";
+      div.innerHTML = '<img src="' + item.previewUrl + '"><button class="remove" data-idx="' + i + '">x</button>';
+      zone.insertBefore(div, hint);
+    });
+  }
+}
+
+$("uploadZone").addEventListener("click", e => {
+  if (e.target.closest(".remove")) { removeImage(+e.target.dataset.idx); return; }
+  if (refImages.length < MAX_IMAGES) $("fileInput").click();
+});
+$("fileInput").addEventListener("change", e => { addFiles(e.target.files); e.target.value = ""; });
+$("uploadZone").addEventListener("dragover", e => { e.preventDefault(); $("uploadZone").classList.add("dragover"); });
+$("uploadZone").addEventListener("dragleave", () => $("uploadZone").classList.remove("dragover"));
+$("uploadZone").addEventListener("drop", e => { e.preventDefault(); $("uploadZone").classList.remove("dragover"); addFiles(e.dataTransfer.files); });
+
+// ==================== history ====================
+function loadHistory() { try { return JSON.parse(localStorage.getItem(LS("history")) || "[]"); } catch { return []; } }
+function saveHistory(list) { localStorage.setItem(LS("history"), JSON.stringify(list.slice(0, 50))); }
+function renderHistory() {
+  const list = loadHistory();
+  if (!list.length) { $("historySection").style.display = "none"; return; }
+  $("historySection").style.display = "block";
+  $("historyGrid").innerHTML = list.map((item, i) =>
+    '<div class="history-item" data-idx="' + i + '">' +
+    '<img src="' + item.url + '" alt="" loading="lazy" referrerpolicy="no-referrer">' +
+    '<div class="meta">' + item.prompt + '</div></div>'
+  ).join("");
+}
+function addToHistory(prompt, url) {
+  const list = loadHistory();
+  list.unshift({ prompt: prompt.slice(0, 100), url, time: Date.now() });
+  saveHistory(list);
+  renderHistory();
+}
+
+// ==================== progress ====================
+const STAGES = [[0,15,"正在分析描述..."],[15,40,"AI 构图中..."],[40,70,"渲染画面中..."],[70,90,"细节优化中..."],[90,99,"即将完成..."]];
+function updateProgress(seconds) {
+  const pct = Math.min(99, seconds * 1.2);
+  $("progressBar").style.width = pct + "%";
+  $("progressSub").textContent = "已等待 " + seconds + " 秒";
+  for (const [lo, hi, text] of STAGES) { if (pct >= lo && pct < hi) { $("progressText").textContent = text; break; } }
+}
+
+// ==================== pushplus ====================
+function notifyPushplus(prompt, model, imageUrl, refCount) {
+  if (!PUSHPLUS_TOKEN) return;
+  const body = '<p><b>Prompt:</b> ' + prompt.slice(0, 200) + '</p>'
+    + '<p><b>模型:</b> ' + model + (refCount ? ' | 参考图: ' + refCount + '张' : '') + '</p>'
+    + '<p><img src="' + imageUrl + '" style="max-width:100%"></p>';
+  fetch("https://www.pushplus.plus/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token: PUSHPLUS_TOKEN, title: "AI绘图 - 新图生成", content: body, template: "html" }),
+  }).catch(() => {});
+}
+
+// ==================== generate ====================
+async function generate() {
+  const prompt = $("prompt").value.trim();
+  if (!prompt || generating) return;
+  if (!ensureSettings()) return;
+
+  const apiKey = getSetting("apiKey", "");
+  const baseUrl = getSetting("baseUrl", DEFAULT_BASE_URL);
+  const model = $("model").value;
+
+  let userContent;
+  if (refImages.length > 0) {
+    userContent = refImages.map(item => ({ type: "image_url", image_url: { url: item.dataUrl } }));
+    userContent.push({ type: "text", text: prompt });
+  } else {
+    userContent = prompt;
+  }
+
+  generating = true;
+  $("generateBtn").disabled = true;
+  $("generateBtn").textContent = "生成中...";
+  $("result").classList.add("visible");
+  $("progressSection").style.display = "block";
+  $("progressBar").style.width = "0%";
+  $("imageBox").style.display = "none";
+  $("errorMsg").style.display = "none";
+
+  let seconds = 0;
+  updateProgress(0);
+  timerInterval = setInterval(() => { seconds++; updateProgress(seconds); }, 1000);
+
+  try {
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: "You are an image generation assistant. Generate an image based on the user's description. If reference images are provided, use them as style/composition reference. Always respond with a generated image, never just text." },
+          { role: "user", content: userContent },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error("API 返回 " + res.status + ": " + text.slice(0, 200));
+    }
+
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    const match = content.match(IMG_URL_RE);
+
+    if (match) {
+      $("progressBar").style.width = "100%";
+      $("progressText").textContent = "完成！";
+      lastImageUrl = match[1];
+      $("imgFallback").style.display = "none";
+      $("resultImg").style.display = "block";
+      $("resultImg").onerror = () => {
+        $("resultImg").style.display = "none";
+        $("imgLink").href = lastImageUrl;
+        $("imgLink").textContent = lastImageUrl;
+        $("imgFallback").style.display = "block";
+      };
+      $("resultImg").src = lastImageUrl;
+      setTimeout(() => { $("progressSection").style.display = "none"; $("imageBox").style.display = "block"; }, 500);
+      addToHistory(prompt, lastImageUrl);
+      notifyPushplus(prompt, model, lastImageUrl, refImages.length);
+    } else {
+      throw new Error("没有生成图片，请重试\n" + content.slice(0, 200));
+    }
+  } catch (err) {
+    $("progressSection").style.display = "none";
+    $("errorMsg").textContent = err.message;
+    $("errorMsg").style.display = "block";
+  } finally {
+    clearInterval(timerInterval);
+    generating = false;
+    $("generateBtn").disabled = false;
+    $("generateBtn").textContent = "生成";
+  }
+}
+
+// ==================== download ====================
+async function downloadImage() {
+  if (!lastImageUrl) return;
+  try {
+    const res = await fetch(lastImageUrl);
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "ai-image-" + Date.now() + ".jpg";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch { window.open(lastImageUrl, "_blank"); }
+}
+
+// ==================== events ====================
+$("generateBtn").addEventListener("click", generate);
+$("prompt").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") generate(); });
+$("downloadBtn").addEventListener("click", downloadImage);
+$("openBtn").addEventListener("click", () => { if (lastImageUrl) window.open(lastImageUrl, "_blank"); });
+$("reuseBtn").addEventListener("click", () => { $("result").classList.remove("visible"); $("prompt").focus(); });
+$("clearHistory").addEventListener("click", () => { if (confirm("确定清空所有历史记录？")) { saveHistory([]); renderHistory(); } });
+$("historyGrid").addEventListener("click", e => {
+  const item = e.target.closest(".history-item");
+  if (!item) return;
+  const list = loadHistory();
+  const idx = +item.dataset.idx;
+  if (list[idx]) { $("lightboxImg").src = list[idx].url; $("lightbox").style.display = "flex"; }
+});
+$("lightbox").addEventListener("click", () => { $("lightbox").style.display = "none"; });
+$("settingsBtn").addEventListener("click", showSettings);
+$("settingsSave").addEventListener("click", saveSettings);
+$("inputApiKey").addEventListener("keydown", e => { if (e.key === "Enter") saveSettings(); });
+
+// ==================== init ====================
+renderHistory();
+if (!getSetting("apiKey", "")) showSettings();
+</script>
+</body>
+</html>
