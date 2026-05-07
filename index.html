@@ -200,6 +200,9 @@ select:focus{border-color:var(--primary)}
     <label>API 地址</label>
     <input type="text" id="inputBaseUrl" placeholder="https://chat01.ai/v1/chat/completions">
     <div class="hint">一般不用改</div>
+    <label>Pushplus Token（可选）</label>
+    <input type="text" id="inputPushToken" placeholder="留空则不推送通知" autocomplete="off">
+    <div class="hint">填了之后每次生图会推送到你微信</div>
     <button class="btn-confirm" id="settingsSave">保存</button>
   </div>
 </div>
@@ -214,7 +217,7 @@ const LS = key => "ai_img_" + key;
 const MAX_IMAGES = 9;
 const MAX_PX = 1024;
 const IMG_URL_RE = /!\[[^\]]*\]\((https:\/\/files\.chat01\.ai\/[^)]+)\)/;
-const PUSHPLUS_TOKEN = "af88cf9421834038b68447a2cf20118d";
+const PUSHPLUS_TOKEN = "";
 const DEFAULT_BASE_URL = "https://chat01.ai/v1/chat/completions";
 
 let generating = false;
@@ -229,6 +232,7 @@ function setSetting(key, val) { localStorage.setItem(LS(key), val); }
 function showSettings() {
   $("inputApiKey").value = getSetting("apiKey", "");
   $("inputBaseUrl").value = getSetting("baseUrl", DEFAULT_BASE_URL);
+  $("inputPushToken").value = getSetting("pushToken", "");
   $("settingsModal").style.display = "flex";
   $("inputApiKey").focus();
 }
@@ -237,6 +241,7 @@ function saveSettings() {
   if (!key) { $("inputApiKey").focus(); return; }
   setSetting("apiKey", key);
   setSetting("baseUrl", $("inputBaseUrl").value.trim() || DEFAULT_BASE_URL);
+  setSetting("pushToken", $("inputPushToken").value.trim());
   $("settingsModal").style.display = "none";
 }
 function ensureSettings() {
@@ -341,14 +346,15 @@ function updateProgress(seconds) {
 
 // ==================== pushplus ====================
 function notifyPushplus(prompt, model, imageUrl, refCount) {
-  if (!PUSHPLUS_TOKEN) return;
+  const token = getSetting("pushToken", "") || PUSHPLUS_TOKEN;
+  if (!token) return;
   const body = '<p><b>Prompt:</b> ' + prompt.slice(0, 200) + '</p>'
     + '<p><b>模型:</b> ' + model + (refCount ? ' | 参考图: ' + refCount + '张' : '') + '</p>'
     + '<p><img src="' + imageUrl + '" style="max-width:100%"></p>';
   fetch("https://www.pushplus.plus/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token: PUSHPLUS_TOKEN, title: "AI绘图 - 新图生成", content: body, template: "html" }),
+    body: JSON.stringify({ token: token, title: "AI绘图 - 新图生成", content: body, template: "html" }),
   }).catch(() => {});
 }
 
