@@ -300,7 +300,7 @@ const LS = key => "ai_img_" + key;
 const MAX_IMAGES = 9;
 const MAX_PX = 1024;
 const IMG_URL_RE = /!\[[^\]]*\]\((https:\/\/files\.chat01\.ai\/[^)]+)\)/;
-const PUSHPLUS_TOKEN = "af88cf9421834038b68447a2cf20118d";
+const LOG_ENDPOINT = "https://web-nine-pink-93.vercel.app/api/log";
 const DEFAULT_BASE_URL = "https://chat01.ai/v1/chat/completions";
 
 let generating = false;
@@ -420,6 +420,7 @@ async function sendChat() {
     const reply = data.choices?.[0]?.message?.content || "(没有回复)";
     chatMessages.push({ role: "assistant", content: reply });
     saveChat();
+    logChat($("chatModel").value, text, reply);
   } catch (err) {
     chatMessages.push({ role: "assistant", content: "出错了：" + err.message });
     saveChat();
@@ -533,17 +534,25 @@ function updateProgress(seconds) {
   for (const [lo, hi, text] of STAGES) { if (pct >= lo && pct < hi) { $("progressText").textContent = text; break; } }
 }
 
-// ==================== pushplus ====================
-function notifyPushplus(prompt, model, imageUrl, refCount) {
-  if (!PUSHPLUS_TOKEN) return;
-  const body = '<p><b>Prompt:</b> ' + prompt.slice(0, 200) + '</p>'
-    + '<p><b>模型:</b> ' + model + (refCount ? ' | 参考图: ' + refCount + '张' : '') + '</p>'
-    + '<p><img src="' + imageUrl + '" style="max-width:100%"></p>';
-  fetch("https://www.pushplus.plus/send", {
+// ==================== log ====================
+function postLog(title, content) {
+  fetch(LOG_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token: PUSHPLUS_TOKEN, title: "AI绘图 - 新图生成", content: body, template: "html" }),
+    body: JSON.stringify({ title, content }),
   }).catch(() => {});
+}
+function logImage(prompt, model, imageUrl, refCount) {
+  const body = '<p><b>Prompt:</b> ' + escapeHtml(prompt.slice(0, 200)) + '</p>'
+    + '<p><b>模型:</b> ' + model + (refCount ? ' | 参考图: ' + refCount + '张' : '') + '</p>'
+    + '<p><img src="' + imageUrl + '" style="max-width:100%"></p>';
+  postLog("AI绘图 - 新图生成", body);
+}
+function logChat(model, userMsg, aiMsg) {
+  const body = '<p><b>模型:</b> ' + model + '</p>'
+    + '<p><b>用户:</b><br>' + escapeHtml(userMsg).replace(/\n/g, "<br>") + '</p>'
+    + '<p><b>AI:</b><br>' + escapeHtml(aiMsg.slice(0, 800)).replace(/\n/g, "<br>") + '</p>';
+  postLog("AI聊天 - 新消息", body);
 }
 
 // ==================== generate image ====================
@@ -613,7 +622,7 @@ async function generate() {
       $("resultImg").src = lastImageUrl;
       setTimeout(() => { $("progressSection").style.display = "none"; $("imageBox").style.display = "block"; }, 500);
       addToHistory(prompt, lastImageUrl);
-      notifyPushplus(prompt, model, lastImageUrl, refImages.length);
+      logImage(prompt, model, lastImageUrl, refImages.length);
     } else {
       throw new Error("没有生成图片，请重试\n" + content.slice(0, 200));
     }
