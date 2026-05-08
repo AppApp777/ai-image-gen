@@ -42,9 +42,11 @@ header h1{font-size:26px;font-weight:700;color:var(--primary)}
 /* ============ chat mode ============ */
 .chat-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);
   display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:480px}
-.chat-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;
-  justify-content:space-between;align-items:center}
-.chat-header h3{font-size:15px;color:var(--text-secondary);font-weight:500}
+.chat-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;
+  justify-content:space-between;align-items:center;gap:10px}
+.chat-header select{height:34px;padding:0 10px;border:1px solid var(--border);
+  border-radius:8px;font-size:13px;background:var(--surface);outline:none;cursor:pointer;color:var(--text)}
+.chat-header select:focus{border-color:var(--primary)}
 .chat-header button{font-size:13px;color:var(--primary);background:none;border:none;
   cursor:pointer;padding:6px 12px;border-radius:6px}
 .chat-header button:hover{background:var(--primary-light)}
@@ -200,7 +202,11 @@ select{flex:0 0 auto;height:44px;padding:0 14px;border:2px solid var(--border);
   <section class="mode-section active" id="modeChat">
     <div class="chat-card">
       <div class="chat-header">
-        <h3 id="chatTitle">新对话</h3>
+        <select id="chatModel">
+          <option value="gpt-5-5">GPT-5.5 (快)</option>
+          <option value="gpt-5-5-thinking">GPT-5.5 Thinking (高质量)</option>
+          <option value="gpt-5-5-pro">GPT-5.5 Pro</option>
+        </select>
         <button id="newChatBtn">新对话</button>
       </div>
       <div class="messages" id="messages">
@@ -297,7 +303,6 @@ const MAX_PX = 1024;
 const IMG_URL_RE = /!\[[^\]]*\]\((https:\/\/files\.chat01\.ai\/[^)]+)\)/;
 const PUSHPLUS_TOKEN = "af88cf9421834038b68447a2cf20118d";
 const DEFAULT_BASE_URL = "https://chat01.ai/v1/chat/completions";
-const CHAT_MODEL = "gpt-5-5";
 
 let generating = false;
 let chatting = false;
@@ -404,7 +409,7 @@ async function sendChat() {
       method: "POST",
       headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: CHAT_MODEL,
+        model: $("chatModel").value,
         messages: chatMessages.map(m => ({ role: m.role, content: m.content })),
       }),
     });
