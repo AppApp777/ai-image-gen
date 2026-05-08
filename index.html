@@ -7,6 +7,8 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>AI 助手</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -80,6 +82,33 @@ header h1{font-size:26px;font-weight:700;color:var(--primary)}
 .msg.ai .bubble{background:var(--ai-bubble);color:var(--text);border-bottom-left-radius:4px;
   border:1px solid var(--border)}
 .msg .time{font-size:11px;color:var(--text-secondary);padding:0 4px}
+
+/* markdown */
+.msg.ai .bubble{white-space:normal}
+.msg.ai .bubble>*:first-child{margin-top:0}
+.msg.ai .bubble>*:last-child{margin-bottom:0}
+.msg.ai .bubble p{margin:0.6em 0}
+.msg.ai .bubble h1,.msg.ai .bubble h2,.msg.ai .bubble h3,.msg.ai .bubble h4{margin:0.8em 0 0.4em;font-weight:600;line-height:1.3}
+.msg.ai .bubble h1{font-size:18px}
+.msg.ai .bubble h2{font-size:17px}
+.msg.ai .bubble h3{font-size:16px}
+.msg.ai .bubble h4{font-size:15px}
+.msg.ai .bubble ul,.msg.ai .bubble ol{margin:0.4em 0;padding-left:1.5em}
+.msg.ai .bubble li{margin:0.2em 0}
+.msg.ai .bubble code{background:#f3f0ff;color:#6d28d9;padding:1px 6px;border-radius:4px;
+  font-family:"SF Mono",Consolas,Monaco,monospace;font-size:0.9em}
+.msg.ai .bubble pre{background:#1f1f2e;color:#e9e7ff;padding:12px 14px;border-radius:8px;
+  overflow-x:auto;margin:0.6em 0;font-size:13px;line-height:1.5}
+.msg.ai .bubble pre code{background:none;color:inherit;padding:0;border-radius:0;font-size:inherit}
+.msg.ai .bubble a{color:var(--primary);text-decoration:underline}
+.msg.ai .bubble blockquote{border-left:3px solid var(--primary);padding-left:12px;color:var(--text-secondary);
+  margin:0.6em 0}
+.msg.ai .bubble strong{font-weight:600}
+.msg.ai .bubble em{font-style:italic}
+.msg.ai .bubble hr{border:none;border-top:1px solid var(--border);margin:1em 0}
+.msg.ai .bubble table{border-collapse:collapse;margin:0.6em 0;font-size:13px}
+.msg.ai .bubble th,.msg.ai .bubble td{border:1px solid var(--border);padding:6px 10px}
+.msg.ai .bubble th{background:var(--primary-light);font-weight:600}
 
 .typing{display:flex;gap:4px;align-items:center;padding:10px 14px;background:var(--ai-bubble);
   border:1px solid var(--border);border-radius:14px;border-bottom-left-radius:4px;width:fit-content}
@@ -418,6 +447,18 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
+function renderMd(text) {
+  if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+    return escapeHtml(text);
+  }
+  try {
+    const html = marked.parse(text, { breaks: true, gfm: true });
+    return DOMPurify.sanitize(html);
+  } catch {
+    return escapeHtml(text);
+  }
+}
+
 function renderMessages() {
   const box = $("messages");
   const chat = getCurrentChat();
@@ -426,9 +467,10 @@ function renderMessages() {
     box.innerHTML = '<div class="empty-chat" id="emptyChat"><div class="icon">💬</div><div>开始你的对话吧</div></div>';
     return;
   }
-  box.innerHTML = messages.map(m =>
-    '<div class="msg ' + m.role + '"><div class="bubble">' + escapeHtml(m.content) + '</div></div>'
-  ).join("");
+  box.innerHTML = messages.map(m => {
+    const content = m.role === "ai" || m.role === "assistant" ? renderMd(m.content) : escapeHtml(m.content);
+    return '<div class="msg ' + m.role + '"><div class="bubble">' + content + '</div></div>';
+  }).join("");
   box.scrollTop = box.scrollHeight;
 }
 
