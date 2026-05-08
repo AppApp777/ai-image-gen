@@ -3,29 +3,89 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 绘图</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>AI 助手</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
   --primary:#7c3aed;--primary-hover:#6d28d9;--primary-light:#ede9fe;
   --bg:#f5f3ff;--surface:#fff;--text:#1f2937;--text-secondary:#6b7280;
   --border:#e5e7eb;--radius:16px;--shadow:0 4px 24px rgba(124,58,237,.08);
+  --user-bubble:#7c3aed;--ai-bubble:#fff;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif;
   background:var(--bg);color:var(--text);min-height:100vh;padding:24px 16px}
-.container{max-width:640px;margin:0 auto}
+.container{max-width:680px;margin:0 auto}
 
-header{text-align:center;padding:32px 0 24px}
-header h1{font-size:28px;font-weight:700;color:var(--primary)}
-header p{color:var(--text-secondary);margin-top:6px;font-size:15px}
+header{text-align:center;padding:24px 0 16px;position:relative}
+header h1{font-size:26px;font-weight:700;color:var(--primary)}
+
+.settings-bar{position:absolute;top:24px;right:0}
+.settings-bar button{font-size:13px;color:var(--text-secondary);background:none;
+  border:1px solid var(--border);border-radius:8px;padding:4px 12px;cursor:pointer}
+.settings-bar button:hover{border-color:var(--primary);color:var(--primary)}
+
+/* tabs */
+.tabs{display:flex;gap:8px;background:var(--surface);border-radius:12px;padding:4px;margin-bottom:16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.tab{flex:1;height:40px;border:none;background:none;border-radius:8px;font-size:15px;
+  font-weight:500;cursor:pointer;color:var(--text-secondary);transition:all .15s}
+.tab.active{background:var(--primary);color:#fff}
 
 .card{background:var(--surface);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow)}
 
-textarea{width:100%;min-height:120px;border:2px solid var(--border);border-radius:12px;
+.mode-section{display:none}
+.mode-section.active{display:block}
+
+/* ============ chat mode ============ */
+.chat-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);
+  display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:480px}
+.chat-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;
+  justify-content:space-between;align-items:center}
+.chat-header h3{font-size:15px;color:var(--text-secondary);font-weight:500}
+.chat-header button{font-size:13px;color:var(--primary);background:none;border:none;
+  cursor:pointer;padding:6px 12px;border-radius:6px}
+.chat-header button:hover{background:var(--primary-light)}
+
+.messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.empty-chat{text-align:center;color:var(--text-secondary);padding:40px 20px;font-size:14px}
+.empty-chat .icon{font-size:32px;margin-bottom:12px;opacity:.4}
+
+.msg{display:flex;max-width:85%;flex-direction:column;gap:4px}
+.msg.user{align-self:flex-end;align-items:flex-end}
+.msg.ai{align-self:flex-start;align-items:flex-start}
+.msg .bubble{padding:10px 14px;border-radius:14px;font-size:15px;line-height:1.6;
+  white-space:pre-wrap;word-break:break-word}
+.msg.user .bubble{background:var(--user-bubble);color:#fff;border-bottom-right-radius:4px}
+.msg.ai .bubble{background:var(--ai-bubble);color:var(--text);border-bottom-left-radius:4px;
+  border:1px solid var(--border)}
+.msg .time{font-size:11px;color:var(--text-secondary);padding:0 4px}
+
+.typing{display:flex;gap:4px;align-items:center;padding:10px 14px;background:var(--ai-bubble);
+  border:1px solid var(--border);border-radius:14px;border-bottom-left-radius:4px;width:fit-content}
+.typing span{width:6px;height:6px;background:var(--text-secondary);border-radius:50%;
+  animation:bounce 1.2s infinite ease-in-out}
+.typing span:nth-child(2){animation-delay:.15s}
+.typing span:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+.chat-input-area{padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end}
+.chat-input-area textarea{flex:1;min-height:40px;max-height:120px;border:2px solid var(--border);
+  border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;resize:none;outline:none;
+  font-family:inherit;transition:border-color .2s}
+.chat-input-area textarea:focus{border-color:var(--primary)}
+.chat-input-area button{height:40px;padding:0 18px;border:none;border-radius:10px;
+  background:var(--primary);color:#fff;font-size:14px;font-weight:600;cursor:pointer;flex-shrink:0}
+.chat-input-area button:disabled{opacity:.55;cursor:not-allowed}
+
+/* ============ image mode ============ */
+textarea.image-prompt{width:100%;min-height:120px;border:2px solid var(--border);border-radius:12px;
   padding:14px 16px;font-size:15px;line-height:1.6;resize:vertical;outline:none;
   font-family:inherit;transition:border-color .2s}
-textarea:focus{border-color:var(--primary)}
-textarea::placeholder{color:#c4b5fd}
+textarea.image-prompt:focus{border-color:var(--primary)}
+textarea.image-prompt::placeholder{color:#c4b5fd}
 
 .upload-section{margin-top:16px}
 .upload-label{font-size:14px;color:var(--text-secondary);margin-bottom:8px;display:flex;align-items:center;gap:6px}
@@ -41,22 +101,17 @@ textarea::placeholder{color:#c4b5fd}
 .preview-item .remove{position:absolute;top:2px;right:2px;width:20px;height:20px;
   background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;
   font-size:14px;line-height:20px;text-align:center;cursor:pointer;padding:0}
-.preview-item .remove:hover{background:rgba(220,38,38,.8)}
 
 .controls{display:flex;gap:12px;margin-top:16px;align-items:center}
 select{flex:0 0 auto;height:44px;padding:0 14px;border:2px solid var(--border);
-  border-radius:10px;font-size:14px;background:var(--surface);outline:none;
-  cursor:pointer;color:var(--text)}
-select:focus{border-color:var(--primary)}
+  border-radius:10px;font-size:14px;background:var(--surface);outline:none;cursor:pointer;color:var(--text)}
 .btn-generate{flex:1;height:44px;border:none;border-radius:10px;
-  background:var(--primary);color:#fff;font-size:16px;font-weight:600;
-  cursor:pointer;transition:all .2s}
+  background:var(--primary);color:#fff;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s}
 .btn-generate:hover:not(:disabled){background:var(--primary-hover);transform:translateY(-1px)}
 .btn-generate:disabled{opacity:.55;cursor:not-allowed}
 
 .result{margin-top:20px;display:none}
 .result.visible{display:block}
-
 .progress-section{padding:24px 0;text-align:center}
 .progress-bar-bg{width:100%;height:8px;background:var(--primary-light);border-radius:4px;overflow:hidden;margin:16px 0 12px}
 .progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--primary),#a78bfa);border-radius:4px;
@@ -76,11 +131,10 @@ select:focus{border-color:var(--primary)}
   border-radius:8px;background:transparent;color:var(--primary);font-size:14px;
   font-weight:500;cursor:pointer;transition:all .15s}
 .image-actions button:hover{background:var(--primary);color:#fff}
-.error-msg{background:#fef2f2;color:#dc2626;padding:14px 16px;border-radius:10px;
-  font-size:14px;line-height:1.5}
+.error-msg{background:#fef2f2;color:#dc2626;padding:14px 16px;border-radius:10px;font-size:14px;line-height:1.5}
 
-.history{margin-top:32px}
-.history h2{font-size:18px;font-weight:600;margin-bottom:16px;display:flex;
+.history{margin-top:24px}
+.history h2{font-size:16px;font-weight:600;margin-bottom:12px;display:flex;
   align-items:center;justify-content:space-between}
 .history h2 button{font-size:13px;color:var(--text-secondary);background:none;
   border:none;cursor:pointer;text-decoration:underline}
@@ -92,11 +146,7 @@ select:focus{border-color:var(--primary)}
 .history-item .meta{padding:8px 10px;font-size:12px;color:var(--text-secondary);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.settings-bar{display:flex;justify-content:flex-end;margin-bottom:12px}
-.settings-bar button{font-size:13px;color:var(--text-secondary);background:none;
-  border:1px solid var(--border);border-radius:8px;padding:4px 12px;cursor:pointer}
-.settings-bar button:hover{border-color:var(--primary);color:var(--primary)}
-
+/* ============ shared ============ */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;
   align-items:center;justify-content:center;z-index:100;padding:20px}
 .modal{background:var(--surface);border-radius:var(--radius);padding:32px;
@@ -117,14 +167,17 @@ select:focus{border-color:var(--primary)}
 
 @media(max-width:480px){
   body{padding:12px 10px}
-  header{padding:20px 0 16px}
-  header h1{font-size:24px}
+  header{padding:16px 0 12px}
+  header h1{font-size:22px}
+  .settings-bar{top:16px}
   .card{padding:16px}
-  textarea{min-height:100px}
+  textarea.image-prompt{min-height:100px}
   .controls{flex-direction:column}
   select,.btn-generate{width:100%}
   .history-grid{grid-template-columns:1fr 1fr;gap:8px}
   .preview-item{width:60px;height:60px}
+  .chat-card{height:calc(100vh - 170px)}
+  .msg{max-width:90%}
 }
 </style>
 </head>
@@ -132,64 +185,91 @@ select:focus{border-color:var(--primary)}
 
 <div class="container">
   <header>
-    <h1>AI 绘图</h1>
-    <p>输入描述，AI 帮你画</p>
+    <h1>AI 助手</h1>
+    <div class="settings-bar">
+      <button id="settingsBtn">设置</button>
+    </div>
   </header>
 
-  <div class="settings-bar">
-    <button id="settingsBtn">设置</button>
+  <div class="tabs">
+    <button class="tab active" data-mode="chat">聊天</button>
+    <button class="tab" data-mode="image">生图</button>
   </div>
 
-  <div class="card">
-    <textarea id="prompt" placeholder="描述你想要的图片，比如：一只橘猫趴在窗台上晒太阳，水彩风格"></textarea>
-
-    <div class="upload-section">
-      <div class="upload-label">风格参考图（可选，最多 9 张）<span class="count" id="imgCount"></span></div>
-      <div class="upload-zone" id="uploadZone">
-        <span class="hint" id="uploadHint">点击或拖拽图片到这里</span>
-        <input type="file" id="fileInput" accept="image/*" multiple>
+  <!-- ============ Chat Mode ============ -->
+  <section class="mode-section active" id="modeChat">
+    <div class="chat-card">
+      <div class="chat-header">
+        <h3 id="chatTitle">新对话</h3>
+        <button id="newChatBtn">新对话</button>
+      </div>
+      <div class="messages" id="messages">
+        <div class="empty-chat" id="emptyChat">
+          <div class="icon">💬</div>
+          <div>开始你的对话吧</div>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <textarea id="chatInput" placeholder="输入消息，回车发送..." rows="1"></textarea>
+        <button id="sendBtn">发送</button>
       </div>
     </div>
+  </section>
 
-    <div class="controls">
-      <select id="model">
-        <option value="gpt-5-5">GPT-5.5 (推荐)</option>
-        <option value="gpt-5-5-thinking">GPT-5.5 Thinking (慢但质量高)</option>
-      </select>
-      <button class="btn-generate" id="generateBtn">生成</button>
-    </div>
-  </div>
-
-  <div class="result" id="result">
+  <!-- ============ Image Mode ============ -->
+  <section class="mode-section" id="modeImage">
     <div class="card">
-      <div class="progress-section" id="progressSection" style="display:none">
-        <div class="progress-text" id="progressText">正在生成中...</div>
-        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
-        <div class="progress-sub" id="progressSub">已等待 0 秒</div>
-        <div class="progress-tip">通常需要 30~90 秒，请保持页面打开</div>
-      </div>
-      <div class="image-box" id="imageBox" style="display:none">
-        <img id="resultImg" alt="生成的图片" referrerpolicy="no-referrer" crossorigin="anonymous">
-        <div id="imgFallback" style="display:none">
-          <p>图片加载失败，点击下方链接查看：</p>
-          <a id="imgLink" href="" target="_blank"></a>
-        </div>
-        <div class="image-actions">
-          <button id="downloadBtn">保存图片</button>
-          <button id="openBtn">查看原图</button>
-          <button id="reuseBtn">再来一张</button>
-        </div>
-      </div>
-      <div class="error-msg" id="errorMsg" style="display:none"></div>
-    </div>
-  </div>
+      <textarea class="image-prompt" id="prompt" placeholder="描述你想要的图片，比如：一只橘猫趴在窗台上晒太阳，水彩风格"></textarea>
 
-  <section class="history" id="historySection" style="display:none">
-    <h2>历史记录 <button id="clearHistory">清空</button></h2>
-    <div class="history-grid" id="historyGrid"></div>
+      <div class="upload-section">
+        <div class="upload-label">风格参考图（可选，最多 9 张）<span class="count" id="imgCount"></span></div>
+        <div class="upload-zone" id="uploadZone">
+          <span class="hint" id="uploadHint">点击或拖拽图片到这里</span>
+          <input type="file" id="fileInput" accept="image/*" multiple>
+        </div>
+      </div>
+
+      <div class="controls">
+        <select id="model">
+          <option value="gpt-5-5">GPT-5.5 (推荐)</option>
+          <option value="gpt-5-5-thinking">GPT-5.5 Thinking (慢但质量高)</option>
+        </select>
+        <button class="btn-generate" id="generateBtn">生成</button>
+      </div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="card">
+        <div class="progress-section" id="progressSection" style="display:none">
+          <div class="progress-text" id="progressText">正在生成中...</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+          <div class="progress-sub" id="progressSub">已等待 0 秒</div>
+          <div class="progress-tip">通常需要 30~90 秒，请保持页面打开</div>
+        </div>
+        <div class="image-box" id="imageBox" style="display:none">
+          <img id="resultImg" alt="生成的图片" referrerpolicy="no-referrer" crossorigin="anonymous">
+          <div id="imgFallback" style="display:none">
+            <p>图片加载失败，点击下方链接查看：</p>
+            <a id="imgLink" href="" target="_blank"></a>
+          </div>
+          <div class="image-actions">
+            <button id="downloadBtn">保存图片</button>
+            <button id="openBtn">查看原图</button>
+            <button id="reuseBtn">再来一张</button>
+          </div>
+        </div>
+        <div class="error-msg" id="errorMsg" style="display:none"></div>
+      </div>
+    </div>
+
+    <section class="history" id="historySection" style="display:none">
+      <h2>历史记录 <button id="clearHistory">清空</button></h2>
+      <div class="history-grid" id="historyGrid"></div>
+    </section>
   </section>
 </div>
 
+<!-- settings modal -->
 <div class="modal-overlay" id="settingsModal" style="display:none">
   <div class="modal">
     <h2>设置</h2>
@@ -204,6 +284,7 @@ select:focus{border-color:var(--primary)}
   </div>
 </div>
 
+<!-- lightbox -->
 <div class="lightbox" id="lightbox" style="display:none">
   <img id="lightboxImg">
 </div>
@@ -216,11 +297,15 @@ const MAX_PX = 1024;
 const IMG_URL_RE = /!\[[^\]]*\]\((https:\/\/files\.chat01\.ai\/[^)]+)\)/;
 const PUSHPLUS_TOKEN = "af88cf9421834038b68447a2cf20118d";
 const DEFAULT_BASE_URL = "https://chat01.ai/v1/chat/completions";
+const CHAT_MODEL = "gpt-5-5";
 
 let generating = false;
+let chatting = false;
 let timerInterval = null;
 let lastImageUrl = "";
 let refImages = [];
+let chatMessages = [];
+let currentMode = "chat";
 
 function getSetting(key, fallback) { return localStorage.getItem(LS(key)) || fallback; }
 function setSetting(key, val) { localStorage.setItem(LS(key), val); }
@@ -244,6 +329,116 @@ function ensureSettings() {
   return true;
 }
 
+// ==================== tab switching ====================
+function switchMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === mode));
+  $("modeChat").classList.toggle("active", mode === "chat");
+  $("modeImage").classList.toggle("active", mode === "image");
+  if (mode === "chat") setTimeout(() => $("chatInput").focus(), 50);
+}
+
+// ==================== chat ====================
+function loadChat() {
+  try { chatMessages = JSON.parse(localStorage.getItem(LS("chat")) || "[]"); }
+  catch { chatMessages = []; }
+}
+function saveChat() {
+  localStorage.setItem(LS("chat"), JSON.stringify(chatMessages.slice(-50)));
+}
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function renderMessages() {
+  const box = $("messages");
+  if (chatMessages.length === 0) {
+    box.innerHTML = '<div class="empty-chat" id="emptyChat"><div class="icon">💬</div><div>开始你的对话吧</div></div>';
+    return;
+  }
+  box.innerHTML = chatMessages.map(m =>
+    '<div class="msg ' + m.role + '"><div class="bubble">' + escapeHtml(m.content) + '</div></div>'
+  ).join("");
+  box.scrollTop = box.scrollHeight;
+}
+function appendTyping() {
+  const box = $("messages");
+  const div = document.createElement("div");
+  div.className = "msg ai";
+  div.id = "typingIndicator";
+  div.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+function removeTyping() {
+  const t = $("typingIndicator");
+  if (t) t.remove();
+}
+function newChat() {
+  if (chatMessages.length > 0 && !confirm("开始新对话？当前对话会清空。")) return;
+  chatMessages = [];
+  saveChat();
+  renderMessages();
+  $("chatInput").focus();
+}
+
+async function sendChat() {
+  const text = $("chatInput").value.trim();
+  if (!text || chatting) return;
+  if (!ensureSettings()) return;
+
+  chatMessages.push({ role: "user", content: text });
+  $("chatInput").value = "";
+  $("chatInput").style.height = "auto";
+  renderMessages();
+  saveChat();
+
+  chatting = true;
+  $("sendBtn").disabled = true;
+  appendTyping();
+
+  const apiKey = getSetting("apiKey", "");
+  const baseUrl = getSetting("baseUrl", DEFAULT_BASE_URL);
+
+  try {
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: CHAT_MODEL,
+        messages: chatMessages.map(m => ({ role: m.role, content: m.content })),
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error("API " + res.status + ": " + errText.slice(0, 200));
+    }
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content || "(没有回复)";
+    chatMessages.push({ role: "assistant", content: reply });
+    saveChat();
+  } catch (err) {
+    chatMessages.push({ role: "assistant", content: "出错了：" + err.message });
+    saveChat();
+  } finally {
+    chatting = false;
+    $("sendBtn").disabled = false;
+    removeTyping();
+    renderMessages();
+    $("chatInput").focus();
+  }
+}
+
+// auto-resize chat textarea
+$("chatInput").addEventListener("input", e => {
+  e.target.style.height = "auto";
+  e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+});
+$("chatInput").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+$("sendBtn").addEventListener("click", sendChat);
+$("newChatBtn").addEventListener("click", newChat);
+
 // ==================== image upload ====================
 function resizeImage(file) {
   return new Promise(resolve => {
@@ -252,8 +447,7 @@ function resizeImage(file) {
       let {width, height} = img;
       if (width > MAX_PX || height > MAX_PX) {
         const scale = MAX_PX / Math.max(width, height);
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
+        width = Math.round(width * scale); height = Math.round(height * scale);
       }
       const canvas = document.createElement("canvas");
       canvas.width = width; canvas.height = height;
@@ -269,8 +463,7 @@ async function addFiles(files) {
   for (const file of toAdd) {
     if (!file.type.startsWith("image/")) continue;
     const dataUrl = await resizeImage(file);
-    const previewUrl = URL.createObjectURL(file);
-    refImages.push({dataUrl, previewUrl});
+    refImages.push({dataUrl, previewUrl: URL.createObjectURL(file)});
   }
   renderPreviews();
 }
@@ -282,16 +475,14 @@ function removeImage(idx) {
 function renderPreviews() {
   const zone = $("uploadZone");
   const hint = $("uploadHint");
-  const count = $("imgCount");
   zone.querySelectorAll(".preview-item").forEach(el => el.remove());
   if (refImages.length === 0) {
-    hint.style.display = "block";
-    hint.textContent = "点击或拖拽图片到这里";
-    count.textContent = "";
+    hint.style.display = "block"; hint.textContent = "点击或拖拽图片到这里";
+    $("imgCount").textContent = "";
   } else {
     hint.style.display = refImages.length >= MAX_IMAGES ? "none" : "block";
     if (refImages.length < MAX_IMAGES) hint.textContent = "继续添加...";
-    count.textContent = refImages.length + "/" + MAX_IMAGES;
+    $("imgCount").textContent = refImages.length + "/" + MAX_IMAGES;
     refImages.forEach((item, i) => {
       const div = document.createElement("div");
       div.className = "preview-item";
@@ -300,7 +491,6 @@ function renderPreviews() {
     });
   }
 }
-
 $("uploadZone").addEventListener("click", e => {
   if (e.target.closest(".remove")) { removeImage(+e.target.dataset.idx); return; }
   if (refImages.length < MAX_IMAGES) $("fileInput").click();
@@ -310,7 +500,7 @@ $("uploadZone").addEventListener("dragover", e => { e.preventDefault(); $("uploa
 $("uploadZone").addEventListener("dragleave", () => $("uploadZone").classList.remove("dragover"));
 $("uploadZone").addEventListener("drop", e => { e.preventDefault(); $("uploadZone").classList.remove("dragover"); addFiles(e.dataTransfer.files); });
 
-// ==================== history ====================
+// ==================== image history ====================
 function loadHistory() { try { return JSON.parse(localStorage.getItem(LS("history")) || "[]"); } catch { return []; } }
 function saveHistory(list) { localStorage.setItem(LS("history"), JSON.stringify(list.slice(0, 50))); }
 function renderHistory() {
@@ -352,7 +542,7 @@ function notifyPushplus(prompt, model, imageUrl, refCount) {
   }).catch(() => {});
 }
 
-// ==================== generate ====================
+// ==================== generate image ====================
 async function generate() {
   const prompt = $("prompt").value.trim();
   if (!prompt || generating) return;
@@ -400,7 +590,6 @@ async function generate() {
       const text = await res.text();
       throw new Error("API 返回 " + res.status + ": " + text.slice(0, 200));
     }
-
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content || "";
     const match = content.match(IMG_URL_RE);
@@ -451,6 +640,7 @@ async function downloadImage() {
 }
 
 // ==================== events ====================
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => switchMode(t.dataset.mode)));
 $("generateBtn").addEventListener("click", generate);
 $("prompt").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") generate(); });
 $("downloadBtn").addEventListener("click", downloadImage);
@@ -470,8 +660,11 @@ $("settingsSave").addEventListener("click", saveSettings);
 $("inputApiKey").addEventListener("keydown", e => { if (e.key === "Enter") saveSettings(); });
 
 // ==================== init ====================
+loadChat();
+renderMessages();
 renderHistory();
 if (!getSetting("apiKey", "")) showSettings();
+$("chatInput").focus();
 </script>
 </body>
 </html>
