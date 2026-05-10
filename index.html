@@ -110,6 +110,20 @@ header h1{font-size:26px;font-weight:700;color:var(--primary)}
 .msg.ai .bubble th,.msg.ai .bubble td{border:1px solid var(--border);padding:6px 10px}
 .msg.ai .bubble th{background:var(--primary-light);font-weight:600}
 
+/* attachment cards (downloadable file links from AI) */
+.bubble a.attachment-card{display:flex;align-items:center;gap:12px;
+  margin:8px 0;padding:12px 14px;background:var(--primary-light);
+  border:1px solid var(--primary);border-radius:10px;
+  text-decoration:none;color:var(--text);
+  transition:transform .12s,box-shadow .12s;max-width:100%}
+.bubble a.attachment-card:hover{transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(124,58,237,.15)}
+.bubble a.attachment-card .att-icon{font-size:28px;flex-shrink:0;line-height:1}
+.bubble a.attachment-card .att-meta{flex:1;min-width:0}
+.bubble a.attachment-card .att-name{font-weight:600;font-size:14px;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bubble a.attachment-card .att-sub{font-size:12px;color:var(--primary);margin-top:2px}
+
 .typing{display:flex;gap:4px;align-items:center;padding:10px 14px;background:var(--ai-bubble);
   border:1px solid var(--border);border-radius:14px;border-bottom-left-radius:4px;width:fit-content}
 .typing span{width:6px;height:6px;background:var(--text-secondary);border-radius:50%;
@@ -360,6 +374,26 @@ const IMG_URL_RE = /!\[[^\]]*\]\((https:\/\/files\.chat01\.ai\/[^)]+)\)/;
 const LOG_ENDPOINT = "https://web-nine-pink-93.vercel.app/api/log";
 const DEFAULT_BASE_URL = "https://chat01.ai/v1/chat/completions";
 
+const ATTACH_TYPES = {
+  docx: { icon: "📄", label: "Word 文档" },
+  doc:  { icon: "📄", label: "Word 文档" },
+  pdf:  { icon: "📕", label: "PDF 文档" },
+  xlsx: { icon: "📊", label: "Excel 表格" },
+  xls:  { icon: "📊", label: "Excel 表格" },
+  csv:  { icon: "📊", label: "CSV 表格" },
+  pptx: { icon: "📽️", label: "PowerPoint 演示" },
+  ppt:  { icon: "📽️", label: "PowerPoint 演示" },
+  zip:  { icon: "🗜️", label: "压缩包" },
+  rar:  { icon: "🗜️", label: "压缩包" },
+  "7z": { icon: "🗜️", label: "压缩包" },
+  txt:  { icon: "📝", label: "文本文件" },
+  md:   { icon: "📝", label: "Markdown 文档" },
+  json: { icon: "📋", label: "JSON 数据" },
+  xml:  { icon: "📋", label: "XML 数据" },
+  yaml: { icon: "📋", label: "YAML 数据" },
+  yml:  { icon: "📋", label: "YAML 数据" },
+};
+
 let generating = false;
 let chatting = false;
 let timerInterval = null;
@@ -447,13 +481,65 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
+function renderAttachments(html) {
+  if (typeof DOMParser === "undefined") return html;
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html;
+  wrapper.querySelectorAll("a[href]").forEach(a => {
+    const href = a.getAttribute("href") || "";
+    if (!/^https?:\/\//i.test(href)) return;
+    let pathname;
+    try { pathname = new URL(href).pathname; } catch { return; }
+    const m = pathname.match(/\.([a-zA-Z0-9]+)$/);
+    if (!m) {
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener noreferrer");
+      return;
+    }
+    const ext = m[1].toLowerCase();
+    const meta = ATTACH_TYPES[ext];
+    if (!meta) {
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener noreferrer");
+      return;
+    }
+    let fname;
+    try { fname = decodeURIComponent(pathname.split("/").pop()); }
+    catch { fname = pathname.split("/").pop(); }
+    const card = document.createElement("a");
+    card.className = "attachment-card";
+    card.href = href;
+    card.target = "_blank";
+    card.rel = "noopener noreferrer";
+    card.setAttribute("download", fname);
+    const iconDiv = document.createElement("div");
+    iconDiv.className = "att-icon";
+    iconDiv.textContent = meta.icon;
+    const metaDiv = document.createElement("div");
+    metaDiv.className = "att-meta";
+    const nameDiv = document.createElement("div");
+    nameDiv.className = "att-name";
+    nameDiv.textContent = fname;
+    const subDiv = document.createElement("div");
+    subDiv.className = "att-sub";
+    subDiv.textContent = meta.label + " · 点击下载";
+    metaDiv.appendChild(nameDiv);
+    metaDiv.appendChild(subDiv);
+    card.appendChild(iconDiv);
+    card.appendChild(metaDiv);
+    a.replaceWith(card);
+  });
+  return wrapper.innerHTML;
+}
+
 function renderMd(text) {
   if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
     return escapeHtml(text);
   }
   try {
     const html = marked.parse(text, { breaks: true, gfm: true });
-    return DOMPurify.sanitize(html);
+    const safe = DOMPurify.sanitize(html, { ADD_ATTR: ["target", "download", "rel"] });
+    return renderAttachments(safe);
   } catch {
     return escapeHtml(text);
   }
